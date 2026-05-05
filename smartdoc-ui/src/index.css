@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { background: #090d13; color: #f3f4f6; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  * { box-sizing: border-box; }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #0f1520; }
+  ::-webkit-scrollbar-thumb { background: #263347; border-radius: 9999px; }
+}
+
+@layer components {
+  .card {
+    background: linear-gradient(145deg, #161e2e 0%, #0f1520 100%);
+    @apply border border-border rounded-xl;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2
+           bg-accent-blue text-surface-0 rounded-lg font-medium text-sm
+           hover:bg-blue-400 active:scale-95 transition-all
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5
+           text-muted rounded-lg text-sm hover:bg-surface-3 hover:text-gray-100
+           transition-colors;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-3 py-1.5
+           text-accent-red rounded-lg text-sm hover:bg-red-900/25
+           transition-colors;
+  }
+
+  .input {
+    @apply w-full bg-surface-2 border border-border rounded-lg px-3 py-2.5
+           text-gray-100 placeholder-muted text-sm
+           focus:outline-none focus:ring-1 focus:ring-accent-blue/60 focus:border-accent-blue/60
+           transition-colors;
+  }
+
+  .tag {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs
+           bg-surface-3 border border-border text-muted;
+  }
+
+  .dot-flashing span {
+    @apply inline-block w-1.5 h-1.5 rounded-full bg-muted;
+    animation: pulse3 1.4s ease-in-out infinite;
+  }
+  .dot-flashing span:nth-child(2) { animation-delay: 0.2s; }
+  .dot-flashing span:nth-child(3) { animation-delay: 0.4s; }
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #4d9eff 0%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glow-blue { box-shadow: 0 0 20px rgba(77, 158, 255, 0.15); }
+.glow-green { box-shadow: 0 0 20px rgba(45, 186, 110, 0.15); }
