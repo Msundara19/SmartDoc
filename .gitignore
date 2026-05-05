@@ -1,0 +1,25 @@
+# secrets
+.env
+*.env
+
+# .NET
+bin/
+obj/
+out/
+publish/
+*.user
+*.suo
+.vs/
+logs/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
