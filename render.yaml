@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: smartdoc-api
+    runtime: dotnet
+    buildCommand: cd SmartDoc.Api && dotnet publish -c Release -o ../publish
+    startCommand: cd publish && dotnet SmartDoc.Api.dll
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__DefaultConnection
+        fromDatabase:
+          name: smartdoc-db
+          property: connectionString
+      - key: OpenAI__ApiKey
+        sync: false          # set manually in Render dashboard
+      - key: Groq__ApiKey
+        sync: false          # set manually in Render dashboard
+      - key: AllowedOrigins
+        sync: false          # set to your Azure Static Web Apps URL
+
+databases:
+  - name: smartdoc-db
+    databaseName: smartdoc
+    user: smartdoc
+    plan: free
