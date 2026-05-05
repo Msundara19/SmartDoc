@@ -78,6 +78,8 @@ Neither signal alone is sufficient. A query like "What is the mAP score?" needs 
 A second safety net catches cases where a borderline score passes the gate but the LLM itself signals it can't answer — the opening sentence of the response is checked for refusal patterns ("doesn't mention", "can't find", "isn't in the", etc.) and the response is reclassified as Insufficient.
 
 **Every answer returns**:
+
+
 ```json
 {
   "answer": "According to page 13, the mAP improved from 61.2% to 68.7%...",
@@ -97,6 +99,26 @@ A second safety net catches cases where a borderline score passes the gate but t
   "rejectionReason": null
 }
 ```
+
+### USP 3 — Flashcard Generation with Zero Repeat Cost
+
+After a document is ingested, SmartDoc can generate a study deck of 8–12 flashcards covering the key concepts in the document.
+
+**How it works**:
+
+1. **Evenly-sampled chunk retrieval** — instead of using the first N chunks (which skews toward the introduction) or all chunks (expensive), a SQL window function distributes the sample evenly across the document using a modulo step:
+   ```sql
+   WHERE total <= @sampleCount OR rn % GREATEST(total / @sampleCount, 1) = 0
+   ```
+   This ensures a 60-page document and a 6-page document both produce representative flashcards.
+
+2. **Structured LLM prompt** — the sampled chunks are sent to Groq with an explicit JSON schema instruction. The model returns a typed array of `{front, back, page, section}` objects, which are parsed and validated before being returned to the client.
+
+3. **DB-level caching** — generated cards are serialised and stored in the `flashcards_json` column on the `documents` row. Subsequent requests return the cached result immediately — no LLM call, no tokens consumed. A `?refresh=true` query parameter bypasses the cache when needed.
+
+4. **Flip-card UI** — each card renders as a CSS 3D transform flip card. Clicking flips the card; keyboard shortcuts work throughout: `Space` to flip, `←` / `→` to navigate. A dot progress bar across the top gives position at a glance.
+
+**Token cost**: first generation ~1,500 tokens. Every repeat view: 0 tokens.
 
 ---
 
@@ -120,25 +142,26 @@ A second safety net catches cases where a borderline score passes the gate but t
 │                                                                  │
 │  ┌──────────────────────────┐  ┌──────────────────────────────┐  │
 │  │ PdfIngestionBackgroundSvc│  │ RetrievalService             │  │
-│  │  1. PdfPig text extract  │  │  1. Embed query (Ollama)     │  │
+│  │  1. PdfPig text extract  │  │  1. Embed query (OpenAI)     │  │
 │  │  2. Type detection       │  │  2. Hybrid BM25+vector (RRF) │  │
 │  │  3. Structure chunking   │  │  3. Confidence gate          │  │
 │  │  4. TOC/junk filtering   │  │  4. LLM refusal detection    │  │
 │  │  5. Overview chunk       │  │  5. Groq LLM (if gate passes)│  │
-│  │  6. Ollama embed + store │  └──────────────────────────────┘  │
+│  │  6. OpenAI embed + store │  └──────────────────────────────┘  │
 │  └──────────────────────────┘                                    │
 └──────────────────────────────┬───────────────────────────────────┘
                                │ Npgsql + pgvector
 ┌──────────────────────────────▼───────────────────────────────────┐
-│              PostgreSQL 16 + pgvector  (Docker)                   │
+│              PostgreSQL 16 + pgvector  (Docker / Render)          │
 │  documents  — id, filename, status, doc_type, flashcards_json    │
-│  chunks     — embedding vector(768), search_vector tsvector,     │
+│  chunks     — embedding vector(1536), search_vector tsvector,    │
 │               section_name, page_number, chunk_index             │
 └───────────────┬──────────────────────────────────────────────────┘
                 │                              │
 ┌───────────────▼──────────────┐  ┌────────────▼───────────────────┐
-│  Ollama (local, free)         │  │  Groq API                      │
-│  nomic-embed-text · 768-dim   │  │  llama-3.3-70b-versatile       │
+│  OpenAI API                   │  │  Groq API                      │
+│  text-embedding-3-small       │  │  llama-3.3-70b-versatile       │
+│  1536-dim                     │  │  Q&A + flashcard generation    │
 └──────────────────────────────┘  └────────────────────────────────┘
 ```
 
@@ -152,8 +175,8 @@ Strongly typed, high-performance, and production-proven. Minimal API removes boi
 **Why PostgreSQL + pgvector instead of a dedicated vector DB (Pinecone, Weaviate)?**
 pgvector keeps the stack simple — one database handles relational document metadata, vector similarity search (ivfflat index), and BM25 full-text search (GIN index on `tsvector`). A dedicated vector DB would add operational complexity and lose the ability to do hybrid SQL + vector queries in a single round trip.
 
-**Why Ollama (nomic-embed-text) instead of OpenAI embeddings?**
-Free, local, no API key required, no data leaving the machine. The `IEmbeddingService` interface makes it a one-class swap to OpenAI `text-embedding-3-small` for cloud deployment — the only schema change is `vector(768)` → `vector(1536)`.
+**Why OpenAI text-embedding-3-small for embeddings?**
+High-quality 1536-dim embeddings via a single API call, with no infrastructure to run. For local development, the `IEmbeddingService` interface makes it a one-class swap to Ollama `nomic-embed-text` (768-dim) — the only schema change is `vector(1536)` → `vector(768)`.
 
 **Why Groq instead of OpenAI for the LLM?**
 Groq's inference hardware delivers significantly lower latency on open-weight models. `llama-3.3-70b-versatile` on Groq produces answers in 1–2 seconds vs 4–6 seconds on comparable OpenAI endpoints, at a fraction of the cost.
@@ -185,32 +208,26 @@ Tested against a 24-page computer vision technical document:
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
 - [Node 18+](https://nodejs.org)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- [Ollama](https://ollama.com) — free local embeddings, no API key
-- Groq API key — free tier at [console.groq.com](https://console.groq.com)
+- OpenAI API key — [platform.openai.com](https://platform.openai.com) (used for embeddings)
+- Groq API key — free tier at [console.groq.com](https://console.groq.com) (used for LLM)
 
-### 1. Pull the embedding model
-
-```bash
-ollama pull nomic-embed-text
-```
-
-### 2. Start PostgreSQL + pgvector
+### 1. Start PostgreSQL + pgvector
 
 ```bash
 cp .env.example .env
-# Edit .env — set GROQ_API_KEY and POSTGRES_PASSWORD
+# Edit .env — set OPENAI_API_KEY, GROQ_API_KEY, and POSTGRES_PASSWORD
 
 docker compose up -d
 ```
 
-### 3. Run the API
+### 2. Run the API
 
 ```bash
 bash run-api.sh
 # API at http://localhost:5001  ·  Swagger UI at http://localhost:5001/swagger
 ```
 
-### 4. Run the frontend
+### 3. Run the frontend
 
 ```bash
 cd smartdoc-ui
@@ -219,7 +236,7 @@ npm run dev
 # UI at http://localhost:5173
 ```
 
-### 5. Run unit tests
+### 4. Run unit tests
 
 ```bash
 cd SmartDoc.Tests && dotnet test
@@ -254,7 +271,7 @@ Deploy `docker-compose.yml` directly — Railway supports Compose deployments ou
 |---|---|
 | API | ASP.NET Core 8 Minimal API, C# |
 | Database | PostgreSQL 16 + pgvector extension |
-| Embeddings | Ollama · nomic-embed-text (768-dim) |
+| Embeddings | OpenAI · text-embedding-3-small (1536-dim) |
 | LLM | Groq · llama-3.3-70b-versatile |
 | PDF extraction | PdfPig |
 | Validation | FluentValidation |
