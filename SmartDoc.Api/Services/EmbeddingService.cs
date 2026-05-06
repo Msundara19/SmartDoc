@@ -56,6 +56,67 @@ public class OllamaEmbeddingService : IEmbeddingService
         [property: JsonPropertyName("embeddings")] List<float[]> Embeddings);
 }
 
+public class JinaEmbeddingService : IEmbeddingService
+{
+    private const string Model = "jina-embeddings-v3";
+    private const int Dimensions = 1024;
+    private const int BatchSize = 20;
+
+    private readonly HttpClient _http;
+
+    public JinaEmbeddingService(HttpClient http, IConfiguration config)
+    {
+        _http = http;
+        var apiKey = config["Jina:ApiKey"]
+            ?? throw new InvalidOperationException("Jina:ApiKey is not configured.");
+        _http.BaseAddress = new Uri("https://api.jina.ai/");
+        _http.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", apiKey);
+        _http.Timeout = TimeSpan.FromSeconds(120);
+    }
+
+    public async Task<float[]> EmbedAsync(string text, CancellationToken ct = default)
+    {
+        var results = await EmbedBatchAsync([text], ct);
+        return results[0];
+    }
+
+    public async Task<List<float[]>> EmbedBatchAsync(IEnumerable<string> texts, CancellationToken ct = default)
+    {
+        var allTexts = texts.ToList();
+        var allEmbeddings = new List<float[]>(allTexts.Count);
+
+        for (int i = 0; i < allTexts.Count; i += BatchSize)
+        {
+            var batch = allTexts.Skip(i).Take(BatchSize).ToList();
+            var payload = new { model = Model, input = batch, dimensions = Dimensions };
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            var response = await _http.PostAsync("v1/embeddings", content, ct);
+            response.EnsureSuccessStatusCode();
+
+            var body = await response.Content.ReadAsStringAsync(ct);
+            var result = JsonSerializer.Deserialize<EmbeddingResponse>(body)
+                ?? throw new InvalidOperationException("Empty response from Jina embeddings API.");
+
+            allEmbeddings.AddRange(result.Data.OrderBy(d => d.Index).Select(d => d.Embedding));
+
+            if (i + BatchSize < allTexts.Count)
+                await Task.Delay(200, ct);
+        }
+
+        return allEmbeddings;
+    }
+
+    private record EmbeddingResponse(
+        [property: JsonPropertyName("data")] List<EmbeddingData> Data);
+
+    private record EmbeddingData(
+        [property: JsonPropertyName("index")] int Index,
+        [property: JsonPropertyName("embedding")] float[] Embedding);
+}
+
 public class OpenAiEmbeddingService : IEmbeddingService
 {
     private const string Model = "text-embedding-3-small";
