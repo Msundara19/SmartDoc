@@ -12,6 +12,7 @@ public interface ILlmService
     Task<string> GenerateAnswerAsync(string question, IEnumerable<ScoredChunk> context,
         IEnumerable<ConversationMessage>? history = null, CancellationToken ct = default);
     Task<List<Flashcard>> GenerateFlashcardsAsync(IEnumerable<Chunk> chunks, CancellationToken ct = default);
+    Task<List<string>> GenerateSuggestionsAsync(IEnumerable<Chunk> chunks, CancellationToken ct = default);
 }
 
 public class GroqLlmService : ILlmService
@@ -162,6 +163,65 @@ public class GroqLlmService : ILlmService
             throw new InvalidOperationException("Groq API returned empty flashcard content.");
 
         return ParseFlashcards(rawJson);
+    }
+
+    public async Task<List<string>> GenerateSuggestionsAsync(
+        IEnumerable<Chunk> chunks, CancellationToken ct = default)
+    {
+        var contextText = BuildFlashcardContext(chunks.ToList());
+
+        var messages = new[]
+        {
+            new
+            {
+                role = "system",
+                content = "You are a document assistant. Output ONLY a valid JSON array of strings. No markdown, no preamble."
+            },
+            new
+            {
+                role = "user",
+                content = $"""
+                    Based on the document chunks below, generate 6 specific questions a user would want to ask about this document.
+                    Return ONLY a JSON array of strings, e.g. ["Question 1?","Question 2?"]
+                    Rules:
+                    1. Questions must be specific to this document's content, not generic
+                    2. Cover different sections/topics across the document
+                    3. Each question under 15 words
+
+                    Document chunks:
+                    {contextText}
+                    """
+            }
+        };
+
+        var payload = new { model = Model, messages, max_tokens = 300, temperature = 0.3 };
+        var json = JsonSerializer.Serialize(payload);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _http.PostAsync("openai/v1/chat/completions", content, ct);
+        if ((int)response.StatusCode == 429)
+            throw new InvalidOperationException("The AI service is temporarily rate-limited.");
+
+        response.EnsureSuccessStatusCode();
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        var result = JsonSerializer.Deserialize<GroqResponse>(body)
+            ?? throw new InvalidOperationException("Empty response from Groq API.");
+
+        var raw = result.Choices[0].Message?.Content ?? "[]";
+        var trimmed = raw.Trim();
+        var s = trimmed.IndexOf('[');
+        var e = trimmed.LastIndexOf(']');
+        if (s >= 0 && e > s) trimmed = trimmed[s..(e + 1)];
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(trimmed) ?? [];
+        }
+        catch
+        {
+            return [];
+        }
     }
 
     private static List<Flashcard> ParseFlashcards(string rawJson)

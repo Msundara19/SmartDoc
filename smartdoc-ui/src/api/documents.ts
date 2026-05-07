@@ -52,3 +52,8 @@ export async function deleteDocument(id: string): Promise<void> {
 export async function getFlashcards(id: string): Promise<FlashcardsResponse> {
   return request(`${BASE}/${id}/flashcards`)
 }
+
+export async function getSuggestions(id: string): Promise<string[]> {
+  const data = await request<{ suggestions: string[] }>(`${BASE}/${id}/suggestions`)
+  return data.suggestions ?? []
+}

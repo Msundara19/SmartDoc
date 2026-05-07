@@ -16,6 +16,7 @@ public static class DocumentEndpoints
         group.MapGet("/", ListDocuments);
         group.MapPost("/{id:guid}/query", QueryDocument);
         group.MapGet("/{id:guid}/flashcards", GetFlashcards);
+        group.MapGet("/{id:guid}/suggestions", GetSuggestions);
         group.MapDelete("/{id:guid}", DeleteDocument);
     }
 
@@ -377,6 +378,34 @@ public static class DocumentEndpoints
             logger.LogError(ex, "Unexpected error during flashcard generation for {DocumentId}.", id);
             return Results.Problem(
                 "An unexpected error occurred generating flashcards. Please try again.", statusCode: 500);
+        }
+    }
+
+    // GET /api/documents/{id}/suggestions
+    private static async Task<IResult> GetSuggestions(
+        Guid id,
+        IVectorRepository repo,
+        ILlmService llm,
+        ILogger<WebApplication> logger,
+        CancellationToken ct)
+    {
+        var doc = await repo.GetDocumentAsync(id, ct);
+        if (doc == null) return Results.NotFound(new { error = $"Document {id} not found." });
+        if (doc.Status != DocumentStatus.Ready)
+            return Results.Problem($"Document is not ready (status: {doc.Status}).", statusCode: 409);
+
+        var chunks = await repo.GetDocumentChunksAsync(id, sampleCount: 6, ct);
+        if (chunks.Count == 0) return Results.Ok(new { suggestions = Array.Empty<string>() });
+
+        try
+        {
+            var suggestions = await llm.GenerateSuggestionsAsync(chunks, ct);
+            return Results.Ok(new { suggestions });
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to generate suggestions for document {DocumentId}.", id);
+            return Results.Ok(new { suggestions = Array.Empty<string>() });
         }
     }
 

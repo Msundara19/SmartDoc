@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getDocumentStatus, queryDocument } from '../api/documents'
+import { getDocumentStatus, queryDocument, getSuggestions } from '../api/documents'
 import ConfidenceMeter from '../components/ConfidenceMeter'
 import EvidenceCard from '../components/EvidenceCard'
 import Spinner, { TypingDots } from '../components/Spinner'
@@ -15,7 +15,7 @@ const TYPE_LABEL: Record<string, string> = {
   general: 'General',
 }
 
-const SUGGESTED = [
+const FALLBACK_SUGGESTIONS = [
   'What are the main topics covered?',
   'What methodology is used?',
   'What are the key findings?',
@@ -42,6 +42,7 @@ export default function ChatPage() {
   const [history, setHistory] = useState<QA[]>([])
   const [querying, setQuerying] = useState(false)
   const [queryError, setQueryError] = useState('')
+  const [suggestions, setSuggestions] = useState<string[]>(FALLBACK_SUGGESTIONS)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -51,6 +52,13 @@ export default function ChatPage() {
       .then(setDoc)
       .catch(err => setDocError(err instanceof Error ? err.message : 'Failed to load document.'))
   }, [documentId])
+
+  useEffect(() => {
+    if (!documentId || !doc || doc.status !== 'ready') return
+    getSuggestions(documentId)
+      .then(s => { if (s.length > 0) setSuggestions(s) })
+      .catch(() => {/* keep fallback */})
+  }, [documentId, doc])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -163,7 +171,7 @@ export default function ChatPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2 justify-center max-w-lg">
-              {SUGGESTED.map(s => (
+              {suggestions.map(s => (
                 <button
                   key={s}
                   onClick={() => submit(s)}
