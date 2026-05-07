@@ -11,11 +11,11 @@ public interface IRetrievalService
 public class RetrievalService : IRetrievalService
 {
     // Thresholds tuned for nomic-embed-text (local Ollama model).
-    // nomic cosine scores cluster in 0.45–0.70; OpenAI-style thresholds are too high.
+    // Jina jina-embeddings-v3 cosine scores cluster lower than OpenAI/nomic.
     // LLM refusal detection acts as second-line defense for out-of-scope pass-throughs.
-    private const double RejectionThreshold = 0.42;
-    private const double LowThreshold = 0.55;
-    private const double MediumThreshold = 0.63;
+    private const double RejectionThreshold = 0.30;
+    private const double LowThreshold = 0.40;
+    private const double MediumThreshold = 0.50;
     private const int TopK = 5;
 
     private readonly IEmbeddingService _embedding;
