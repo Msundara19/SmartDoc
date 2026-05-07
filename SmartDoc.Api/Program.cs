@@ -55,7 +55,7 @@ try
     builder.Services.AddScoped<IChunkingService, ChunkingService>();
     builder.Services.AddScoped<IRetrievalService, RetrievalService>();
 
-    builder.Services.AddHttpClient<IEmbeddingService, OpenAiEmbeddingService>();
+    builder.Services.AddHttpClient<IEmbeddingService, JinaEmbeddingService>();
     builder.Services.AddHttpClient<ILlmService, GroqLlmService>();
 
     // Background service
