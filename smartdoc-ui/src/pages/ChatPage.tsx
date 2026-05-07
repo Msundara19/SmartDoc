@@ -8,6 +8,42 @@ import type { Document, QueryResponse, ConversationMessage } from '../types'
 
 interface QA { question: string; response: QueryResponse; ts: Date }
 
+function renderAnswer(
+  answer: string,
+  evidence: QueryResponse['evidence'],
+  onCiteClick: (idx: number) => void,
+) {
+  const PAGE_RE = /\bpage\s+(\d+)/gi
+  const nodes: React.ReactNode[] = []
+  let last = 0
+  let m: RegExpExecArray | null
+
+  while ((m = PAGE_RE.exec(answer)) !== null) {
+    if (m.index > last) nodes.push(answer.slice(last, m.index))
+    const pageNum = parseInt(m[1], 10)
+    const evidenceIdx = evidence.findIndex(e => e.page === pageNum)
+    const targetIdx = evidenceIdx >= 0 ? evidenceIdx : 0
+    nodes.push(
+      <button
+        key={m.index}
+        onClick={() => onCiteClick(targetIdx)}
+        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[11px] font-medium
+          bg-accent-blue/15 text-accent-blue border border-accent-blue/30
+          hover:bg-accent-blue/30 transition-colors cursor-pointer"
+      >
+        {m[0]}
+        <svg className="w-2.5 h-2.5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </button>
+    )
+    last = m.index + m[0].length
+  }
+
+  if (last < answer.length) nodes.push(answer.slice(last))
+  return nodes
+}
+
 const TYPE_LABEL: Record<string, string> = {
   research_paper: 'Research Paper',
   legal: 'Legal',
@@ -43,6 +79,7 @@ export default function ChatPage() {
   const [querying, setQuerying] = useState(false)
   const [queryError, setQueryError] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>(FALLBACK_SUGGESTIONS)
+  const [activeEvidence, setActiveEvidence] = useState<Record<number, number>>({})
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -83,6 +120,15 @@ export default function ChatPage() {
       setQuerying(false)
       setTimeout(() => inputRef.current?.focus(), 50)
     }
+  }
+
+  function handleCiteClick(qaIdx: number, evidenceIdx: number) {
+    setActiveEvidence(prev => ({ ...prev, [qaIdx]: evidenceIdx }))
+    const details = document.getElementById(`evidence-details-${qaIdx}`) as HTMLDetailsElement | null
+    if (details) details.open = true
+    setTimeout(() => {
+      document.getElementById(`evidence-card-${qaIdx}-${evidenceIdx}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    }, 50)
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -210,7 +256,7 @@ export default function ChatPage() {
                 {/* Answer text */}
                 {qa.response.answer && (
                   <div className="rounded-xl border border-surface-4 bg-surface-3 px-5 py-4 text-sm text-gray-100 leading-7 whitespace-pre-wrap">
-                    {qa.response.answer}
+                    {renderAnswer(qa.response.answer, qa.response.evidence, idx => handleCiteClick(i, idx))}
                   </div>
                 )}
 
@@ -230,7 +276,7 @@ export default function ChatPage() {
 
                 {/* Evidence accordion */}
                 {qa.response.evidence.length > 0 && (
-                  <details className="group">
+                  <details id={`evidence-details-${i}`} className="group">
                     <summary className="flex items-center gap-2 text-xs text-muted cursor-pointer select-none
                       hover:text-gray-300 transition-colors list-none">
                       <svg className="w-3 h-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -240,7 +286,13 @@ export default function ChatPage() {
                     </summary>
                     <div className="mt-2 space-y-2">
                       {qa.response.evidence.map((item, j) => (
-                        <EvidenceCard key={j} item={item} rank={j + 1} />
+                        <EvidenceCard
+                          key={j}
+                          item={item}
+                          rank={j + 1}
+                          active={activeEvidence[i] === j}
+                          id={`evidence-card-${i}-${j}`}
+                        />
                       ))}
                     </div>
                   </details>

@@ -4,6 +4,8 @@ import type { EvidenceItem } from '../types'
 interface Props {
   item: EvidenceItem
   rank: number
+  active?: boolean
+  id?: string
 }
 
 function scoreColor(score: number) {
@@ -13,9 +15,16 @@ function scoreColor(score: number) {
   return 'border-l-muted'
 }
 
-export default function EvidenceCard({ item, rank }: Props) {
+export default function EvidenceCard({ item, rank, active, id }: Props) {
   return (
-    <div className={clsx('bg-surface-2 border border-border border-l-2 rounded-lg p-3 space-y-2 animate-fade-in', scoreColor(item.similarityScore))}>
+    <div
+      id={id}
+      className={clsx(
+        'bg-surface-2 border border-l-2 rounded-lg p-3 space-y-2 animate-fade-in transition-all duration-300',
+        scoreColor(item.similarityScore),
+        active ? 'border-accent-blue ring-2 ring-accent-blue/40 bg-surface-3' : 'border-border',
+      )}
+    >
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-mono text-muted bg-surface-3 px-1.5 py-0.5 rounded">
