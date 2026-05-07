@@ -106,7 +106,7 @@ export default function UploadPage() {
       </div>
 
       {/* Right panel — upload */}
-      <div className="flex-1 flex flex-col p-8 gap-6 max-w-2xl">
+      <div className="flex-1 flex flex-col p-4 sm:p-8 gap-6 max-w-2xl">
         <div>
           <h1 className="text-2xl font-semibold text-gray-100">Upload Document</h1>
           <p className="text-sm text-muted mt-1">Drag and drop a PDF to begin structure-aware ingestion.</p>
@@ -115,7 +115,7 @@ export default function UploadPage() {
         {/* Drop zone */}
         <div
           {...getRootProps()}
-          className={`relative rounded-2xl border-2 border-dashed p-16 text-center cursor-pointer
+          className={`relative rounded-2xl border-2 border-dashed p-8 sm:p-16 text-center cursor-pointer
             transition-all duration-200 group
             ${isDragActive
               ? 'border-accent-blue bg-accent-blue/8 glow-blue'
@@ -220,7 +220,7 @@ export default function UploadPage() {
             {doc.status === 'ready' && (
               <div className="pt-4 border-t border-border space-y-4 animate-fade-in">
                 {typeInfo && (
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
                       { label: 'Type',     value: typeInfo.label, color: typeInfo.color },
                       { label: 'Pages',    value: String(doc.pageCount ?? '—'), color: 'text-gray-100' },

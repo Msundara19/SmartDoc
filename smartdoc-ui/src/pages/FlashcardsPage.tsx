@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getDocumentStatus, getFlashcards } from '../api/documents'
 import Spinner from '../components/Spinner'
@@ -25,6 +25,8 @@ export default function FlashcardsPage() {
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to generate flashcards.'))
       .finally(() => setLoading(false))
   }, [documentId])
+
+  const touchStartX = useRef(0)
 
   const goTo = useCallback((index: number) => {
     setCurrent(index)
@@ -136,6 +138,13 @@ export default function FlashcardsPage() {
         <div
           className="[perspective:1200px] w-full max-w-2xl cursor-pointer select-none"
           onClick={() => setFlipped(f => !f)}
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+          onTouchEnd={e => {
+            const dx = e.changedTouches[0].clientX - touchStartX.current
+            if (Math.abs(dx) < 10) return
+            if (dx > 50 && current > 0) goTo(current - 1)
+            else if (dx < -50 && current < cards.length - 1) goTo(current + 1)
+          }}
         >
           <div
             className={`relative h-64 [transform-style:preserve-3d] transition-transform duration-500 ${
@@ -211,7 +220,8 @@ export default function FlashcardsPage() {
           </button>
         </div>
 
-        <p className="text-xs text-muted/40">← → to navigate · Space to flip</p>
+        <p className="text-xs text-muted/40 hidden sm:block">← → to navigate · Space to flip</p>
+        <p className="text-xs text-muted/40 sm:hidden">swipe to navigate · tap to flip</p>
       </div>
     </div>
   )

@@ -35,7 +35,7 @@ function Sidebar() {
 
   return (
     <aside
-      className={`${isChatPage ? 'w-14' : 'w-56'} shrink-0 flex flex-col border-r border-border bg-surface-1 transition-all duration-300`}
+      className={`hidden sm:flex ${isChatPage ? 'w-14' : 'w-56'} shrink-0 flex-col border-r border-border bg-surface-1 transition-all duration-300`}
     >
       {/* Logo */}
       <div className="px-4 py-5 flex items-center gap-2.5">
@@ -80,7 +80,7 @@ function Sidebar() {
           <div className="text-[10px] text-muted/60 space-y-1 pt-4 border-t border-border">
             <p className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-accent-green inline-block" />
-              pgvector · nomic-embed
+              pgvector · Jina AI
             </p>
             <p className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-accent-purple inline-block" />
@@ -93,11 +93,38 @@ function Sidebar() {
   )
 }
 
+function BottomNav() {
+  const location = useLocation()
+  if (location.pathname.startsWith('/chat/')) return null
+
+  return (
+    <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 h-14 border-t border-border bg-surface-1 flex safe-area-pb">
+      {NAV.map(({ to, exact, icon, label }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={exact}
+          className={({ isActive }) =>
+            `flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] transition-colors
+            ${isActive ? 'text-accent-blue' : 'text-muted'}`
+          }
+        >
+          {icon}
+          <span>{label}</span>
+        </NavLink>
+      ))}
+    </nav>
+  )
+}
+
 export default function App() {
+  const location = useLocation()
+  const isChatRoute = location.pathname.startsWith('/chat/')
+
   return (
     <div className="min-h-screen flex bg-surface-0">
       <Sidebar />
-      <main className="flex-1 min-w-0 overflow-auto">
+      <main className={`flex-1 min-w-0 overflow-auto ${isChatRoute ? '' : 'pb-14 sm:pb-0'}`}>
         <Routes>
           <Route path="/" element={<UploadPage />} />
           <Route path="/library" element={<LibraryPage />} />
@@ -105,6 +132,7 @@ export default function App() {
           <Route path="/chat/:documentId/flashcards" element={<FlashcardsPage />} />
         </Routes>
       </main>
+      <BottomNav />
     </div>
   )
 }
