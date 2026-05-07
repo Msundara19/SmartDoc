@@ -33,6 +33,7 @@ A full-stack document intelligence platform:
 - **Document-specific query suggestions** — 6 questions generated from the document's content shown on load, eliminating cold-start friction
 - **Flashcard generation** — automatically extracts key concepts from the document into study cards, cached after first generation
 - **Semantic document summaries** — each document gets a 3–5 sentence prose summary generated at ingestion time and displayed on the library card, so you can assess relevance without opening the document
+- **Source highlighting** — page citations in answers are rendered as clickable chips; clicking one opens the evidence panel and scrolls to the exact source chunk with a ring highlight
 - **Library** to manage multiple documents
 
 ---
@@ -162,6 +163,25 @@ When a document finishes indexing, SmartDoc immediately generates a 3–5 senten
 **Result**: users see a plain-language description on every library card without any extra clicks.
 
 **Token cost:** ~400–600 tokens per document, charged once at ingestion. Zero cost on subsequent views.
+
+---
+
+### USP 7 — Source Highlighting (Citation Jump)
+
+The LLM is instructed to cite page numbers in its answers ("According to page 4, ..."). SmartDoc makes those citations interactive — clicking one jumps directly to the source chunk that supports the claim.
+
+**How it works:**
+
+1. The answer text is parsed client-side with a regex (`/\bpage\s+(\d+)/gi`) that matches all page number references
+2. Each match is replaced with a blue clickable chip rendered inline in the answer text
+3. Clicking a chip:
+   - Auto-opens the evidence accordion below the answer if it is collapsed
+   - Scrolls the matching evidence card into view
+   - Applies a blue ring highlight to that card so it's immediately obvious which chunk the citation refers to
+4. If the LLM cites a page that doesn't exactly match any retrieved chunk (e.g. it generalised across pages), the chip falls back to highlighting the top-ranked chunk — so the button is always useful
+5. The ring persists until the user clicks a different citation, enabling side-by-side comparison of which chunk supports which part of the answer
+
+**Why this matters:** the confidence + evidence system already returns source chunks for every answer. Source highlighting makes that data visible and navigable without any extra API calls — it's a pure UI layer on top of data that was already there.
 
 ---
 
