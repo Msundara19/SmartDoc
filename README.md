@@ -2,8 +2,11 @@
 
 > A production-grade Retrieval-Augmented Generation (RAG) system that answers questions about PDF documents with **verifiable confidence scores** and **zero hallucination** on out-of-scope queries.
 
-**Live demo:** [smart-doc-chi.vercel.app](https://smart-doc-chi.vercel.app)
+<img width="1289" height="808" alt="image" src="https://github.com/user-attachments/assets/612321a4-92f3-4cad-b6ac-4cbafa9be495" />
+<img width="1466" height="805" alt="image" src="https://github.com/user-attachments/assets/dabc48b8-db57-4e2c-8d00-009e0504dff0" />
+<img width="1467" height="800" alt="image" src="https://github.com/user-attachments/assets/a3f84974-81ee-4882-b253-e17a932f09de" />
 
+**Live demo:** [smart-doc-chi.vercel.app](https://smart-doc-chi.vercel.app)
 ---
 
 ## Why I Built This
