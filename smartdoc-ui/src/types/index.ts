@@ -27,6 +27,11 @@ export interface QueryResponse {
   rejectionReason: string | null
 }
 
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+
 export interface Flashcard {
   front: string
   back: string

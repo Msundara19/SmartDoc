@@ -4,7 +4,7 @@ import { getDocumentStatus, queryDocument } from '../api/documents'
 import ConfidenceMeter from '../components/ConfidenceMeter'
 import EvidenceCard from '../components/EvidenceCard'
 import Spinner, { TypingDots } from '../components/Spinner'
-import type { Document, QueryResponse } from '../types'
+import type { Document, QueryResponse, ConversationMessage } from '../types'
 
 interface QA { question: string; response: QueryResponse; ts: Date }
 
@@ -62,7 +62,12 @@ export default function ChatPage() {
     setQuerying(true)
     setQueryError('')
     try {
-      const response = await queryDocument(documentId, q.trim())
+      // Build flat message history from prior turns to send with this request
+      const conversationHistory: ConversationMessage[] = history.flatMap(qa => [
+        { role: 'user' as const, content: qa.question },
+        { role: 'assistant' as const, content: qa.response.answer || qa.response.rejectionReason || '' },
+      ])
+      const response = await queryDocument(documentId, q.trim(), conversationHistory)
       setHistory(prev => [...prev, { question: q.trim(), response, ts: new Date() }])
     } catch (err) {
       setQueryError(err instanceof Error ? err.message : 'Query failed.')

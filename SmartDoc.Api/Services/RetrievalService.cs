@@ -5,7 +5,8 @@ namespace SmartDoc.Api.Services;
 
 public interface IRetrievalService
 {
-    Task<QueryResponse> QueryAsync(Guid documentId, string question, CancellationToken ct = default);
+    Task<QueryResponse> QueryAsync(Guid documentId, string question,
+        IEnumerable<ConversationMessage>? history = null, CancellationToken ct = default);
 }
 
 public class RetrievalService : IRetrievalService
@@ -32,7 +33,8 @@ public class RetrievalService : IRetrievalService
         _llm = llm;
     }
 
-    public async Task<QueryResponse> QueryAsync(Guid documentId, string question, CancellationToken ct = default)
+    public async Task<QueryResponse> QueryAsync(Guid documentId, string question,
+        IEnumerable<ConversationMessage>? history = null, CancellationToken ct = default)
     {
         // Step 1: embed the query
         var queryEmbedding = await _embedding.EmbedAsync(question, ct);
@@ -81,7 +83,7 @@ public class RetrievalService : IRetrievalService
         };
 
         // Step 4: call LLM with context
-        var answer = await _llm.GenerateAnswerAsync(question, scoredChunks, ct);
+        var answer = await _llm.GenerateAnswerAsync(question, scoredChunks, history, ct);
 
         // If the LLM itself signals the context is insufficient, treat as a rejection
         // rather than showing a misleading confidence label.

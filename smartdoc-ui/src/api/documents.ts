@@ -1,4 +1,4 @@
-import type { Document, QueryResponse, FlashcardsResponse } from '../types'
+import type { Document, QueryResponse, FlashcardsResponse, ConversationMessage } from '../types'
 
 const API_ROOT = import.meta.env.VITE_API_BASE_URL ?? ''
 const BASE = `${API_ROOT}/api/documents`
@@ -33,11 +33,15 @@ export async function listDocuments(): Promise<Document[]> {
   return request(BASE)
 }
 
-export async function queryDocument(id: string, question: string): Promise<QueryResponse> {
+export async function queryDocument(
+  id: string,
+  question: string,
+  history: ConversationMessage[] = []
+): Promise<QueryResponse> {
   return request(`${BASE}/${id}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, history }),
   })
 }
 

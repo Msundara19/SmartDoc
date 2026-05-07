@@ -258,7 +258,7 @@ public static class DocumentEndpoints
 
         try
         {
-            var response = await retrieval.QueryAsync(id, question, ct);
+            var response = await retrieval.QueryAsync(id, question, body.History, ct);
             return Results.Ok(response);
         }
         catch (InvalidOperationException ex) when (ex.Message.Contains("rate-limited"))

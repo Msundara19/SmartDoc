@@ -9,7 +9,8 @@ namespace SmartDoc.Api.Services;
 
 public interface ILlmService
 {
-    Task<string> GenerateAnswerAsync(string question, IEnumerable<ScoredChunk> context, CancellationToken ct = default);
+    Task<string> GenerateAnswerAsync(string question, IEnumerable<ScoredChunk> context,
+        IEnumerable<ConversationMessage>? history = null, CancellationToken ct = default);
     Task<List<Flashcard>> GenerateFlashcardsAsync(IEnumerable<Chunk> chunks, CancellationToken ct = default);
 }
 
@@ -33,32 +34,41 @@ public class GroqLlmService : ILlmService
     }
 
     public async Task<string> GenerateAnswerAsync(
-        string question, IEnumerable<ScoredChunk> context, CancellationToken ct = default)
+        string question, IEnumerable<ScoredChunk> context,
+        IEnumerable<ConversationMessage>? history = null, CancellationToken ct = default)
     {
         var contextText = BuildContextText(context);
 
-        var messages = new[]
+        // Cap history at last 6 messages (3 turns) to stay within token budget
+        var recentHistory = (history ?? []).TakeLast(6).ToList();
+
+        var messages = new List<object>
         {
             new
             {
                 role = "system",
                 content = "You are a document Q&A assistant. Answer ONLY from the provided context chunks. " +
                           "Cite page numbers where relevant (e.g. \"According to page 4, ...\"). " +
-                          "If the context lacks enough information, say so. Be concise."
-            },
-            new
-            {
-                role = "user",
-                content = $"""
-                    Context from the document:
-                    {contextText}
-
-                    Question: {question}
-
-                    Answer based solely on the context above:
-                    """
+                          "Use the conversation history to understand follow-up questions. Be concise."
             }
         };
+
+        // Inject prior turns so the LLM understands follow-ups like "elaborate on that"
+        foreach (var msg in recentHistory)
+            messages.Add(new { role = msg.Role, content = msg.Content });
+
+        messages.Add(new
+        {
+            role = "user",
+            content = $"""
+                Context from the document:
+                {contextText}
+
+                Question: {question}
+
+                Answer based solely on the context above:
+                """
+        });
 
         var payload = new
         {

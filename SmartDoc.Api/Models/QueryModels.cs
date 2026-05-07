@@ -3,9 +3,16 @@ namespace SmartDoc.Api.Models;
 // Using a class instead of a positional record so that a missing JSON
 // "question" field deserialises to an empty string rather than null,
 // preventing NullReferenceExceptions in the validator length checks.
+public class ConversationMessage
+{
+    public string Role { get; set; } = string.Empty;    // "user" or "assistant"
+    public string Content { get; set; } = string.Empty;
+}
+
 public class QueryRequest
 {
     public string Question { get; set; } = string.Empty;
+    public List<ConversationMessage> History { get; set; } = [];
 }
 
 public class QueryResponse
