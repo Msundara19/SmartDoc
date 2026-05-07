@@ -10,6 +10,7 @@ public class Document
     public int? PageCount { get; set; }
     public string? ErrorMessage { get; set; }
     public long? FileSizeBytes { get; set; }
+    public string? Summary { get; set; }
 }
 
 public static class DocumentStatus

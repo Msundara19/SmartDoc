@@ -64,6 +64,7 @@ public class PdfIngestionBackgroundService : BackgroundService
         var repo = scope.ServiceProvider.GetRequiredService<IVectorRepository>();
         var chunker = scope.ServiceProvider.GetRequiredService<IChunkingService>();
         var embedder = scope.ServiceProvider.GetRequiredService<IEmbeddingService>();
+        var llm = scope.ServiceProvider.GetRequiredService<ILlmService>();
 
         _logger.LogInformation("Processing ingestion job for document {DocumentId}", job.DocumentId);
 
@@ -96,6 +97,20 @@ public class PdfIngestionBackgroundService : BackgroundService
                 chunks[i].Embedding = embeddings[i];
 
             await repo.SaveChunksAsync(chunks, ct);
+
+            // Generate and persist summary — fire-and-forget style; failure is non-fatal
+            try
+            {
+                var sampleChunks = await repo.GetDocumentChunksAsync(job.DocumentId, sampleCount: 6, ct);
+                var summary = await llm.GenerateSummaryAsync(sampleChunks, ct);
+                if (!string.IsNullOrWhiteSpace(summary))
+                    await repo.SaveSummaryAsync(job.DocumentId, summary, ct);
+            }
+            catch (Exception summaryEx)
+            {
+                _logger.LogWarning(summaryEx, "Summary generation failed for document {DocumentId}; continuing.", job.DocumentId);
+            }
+
             await repo.UpdateDocumentStatusAsync(job.DocumentId, DocumentStatus.Ready, ct: ct);
 
             _logger.LogInformation("Document {DocumentId} ingestion complete.", job.DocumentId);

@@ -7,6 +7,7 @@ export interface Document {
   uploadTime: string
   fileSizeBytes: number | null
   errorMessage?: string | null
+  summary?: string | null
 }
 
 export interface EvidenceItem {

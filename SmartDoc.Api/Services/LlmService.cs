@@ -13,6 +13,7 @@ public interface ILlmService
         IEnumerable<ConversationMessage>? history = null, CancellationToken ct = default);
     Task<List<Flashcard>> GenerateFlashcardsAsync(IEnumerable<Chunk> chunks, CancellationToken ct = default);
     Task<List<string>> GenerateSuggestionsAsync(IEnumerable<Chunk> chunks, CancellationToken ct = default);
+    Task<string> GenerateSummaryAsync(IEnumerable<Chunk> chunks, CancellationToken ct = default);
 }
 
 public class GroqLlmService : ILlmService
@@ -163,6 +164,42 @@ public class GroqLlmService : ILlmService
             throw new InvalidOperationException("Groq API returned empty flashcard content.");
 
         return ParseFlashcards(rawJson);
+    }
+
+    public async Task<string> GenerateSummaryAsync(
+        IEnumerable<Chunk> chunks, CancellationToken ct = default)
+    {
+        var contextText = BuildFlashcardContext(chunks.ToList());
+
+        var messages = new[]
+        {
+            new { role = "system", content = "You are a document summariser. Be concise and factual." },
+            new
+            {
+                role = "user",
+                content = $"""
+                    Summarise the following document in 3-5 sentences.
+                    Cover: what the document is about, its key findings or purpose, and who it is for.
+                    Do not use bullet points. Plain prose only.
+
+                    Document chunks:
+                    {contextText}
+                    """
+            }
+        };
+
+        var payload = new { model = Model, messages, max_tokens = 200, temperature = 0.2 };
+        var json = JsonSerializer.Serialize(payload);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        var response = await _http.PostAsync("openai/v1/chat/completions", content, ct);
+        response.EnsureSuccessStatusCode();
+
+        var body = await response.Content.ReadAsStringAsync(ct);
+        var result = JsonSerializer.Deserialize<GroqResponse>(body)
+            ?? throw new InvalidOperationException("Empty response from Groq API.");
+
+        return result.Choices[0].Message?.Content.Trim() ?? string.Empty;
     }
 
     public async Task<List<string>> GenerateSuggestionsAsync(

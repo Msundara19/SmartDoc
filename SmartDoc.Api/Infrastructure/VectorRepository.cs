@@ -19,6 +19,7 @@ public interface IVectorRepository
     Task<IReadOnlyList<Chunk>> GetDocumentChunksAsync(Guid documentId, int sampleCount = 8, CancellationToken ct = default);
     Task<List<Flashcard>?> GetCachedFlashcardsAsync(Guid documentId, CancellationToken ct = default);
     Task SaveFlashcardsAsync(Guid documentId, List<Flashcard> cards, CancellationToken ct = default);
+    Task SaveSummaryAsync(Guid documentId, string summary, CancellationToken ct = default);
     Task DeleteDocumentAsync(Guid id, CancellationToken ct = default);
 }
 
@@ -299,6 +300,16 @@ public class VectorRepository : IVectorRepository
         await cmd.ExecuteNonQueryAsync(ct);
     }
 
+    public async Task SaveSummaryAsync(Guid documentId, string summary, CancellationToken ct = default)
+    {
+        await using var conn = await _dataSource.OpenConnectionAsync(ct);
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE documents SET summary = @summary WHERE id = @id";
+        cmd.Parameters.AddWithValue("id", documentId);
+        cmd.Parameters.AddWithValue("summary", summary);
+        await cmd.ExecuteNonQueryAsync(ct);
+    }
+
     public async Task DeleteDocumentAsync(Guid id, CancellationToken ct = default)
     {
         await using var conn = await _dataSource.OpenConnectionAsync(ct);
@@ -318,6 +329,7 @@ public class VectorRepository : IVectorRepository
         DocType = reader.IsDBNull(reader.GetOrdinal("doc_type")) ? null : reader.GetString(reader.GetOrdinal("doc_type")),
         PageCount = reader.IsDBNull(reader.GetOrdinal("page_count")) ? null : reader.GetInt32(reader.GetOrdinal("page_count")),
         ErrorMessage = reader.IsDBNull(reader.GetOrdinal("error_message")) ? null : reader.GetString(reader.GetOrdinal("error_message")),
-        FileSizeBytes = reader.IsDBNull(reader.GetOrdinal("file_size_bytes")) ? null : reader.GetInt64(reader.GetOrdinal("file_size_bytes"))
+        FileSizeBytes = reader.IsDBNull(reader.GetOrdinal("file_size_bytes")) ? null : reader.GetInt64(reader.GetOrdinal("file_size_bytes")),
+        Summary = reader.IsDBNull(reader.GetOrdinal("summary")) ? null : reader.GetString(reader.GetOrdinal("summary"))
     };
 }

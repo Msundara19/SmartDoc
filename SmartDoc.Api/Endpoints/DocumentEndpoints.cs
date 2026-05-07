@@ -157,7 +157,8 @@ public static class DocumentEndpoints
             docType = doc.DocType,
             pageCount = doc.PageCount,
             uploadTime = doc.UploadTime,
-            errorMessage = doc.ErrorMessage
+            errorMessage = doc.ErrorMessage,
+            summary = doc.Summary
         });
     }
 
@@ -186,7 +187,8 @@ public static class DocumentEndpoints
             docType = d.DocType,
             pageCount = d.PageCount,
             uploadTime = d.UploadTime,
-            fileSizeBytes = d.FileSizeBytes
+            fileSizeBytes = d.FileSizeBytes,
+            summary = d.Summary
         }));
     }
 

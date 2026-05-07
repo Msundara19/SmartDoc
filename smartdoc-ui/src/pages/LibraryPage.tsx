@@ -64,6 +64,12 @@ function DocCard({ doc, onDelete, deleting, onQuery }: {
         <span className="tag">{fmt(doc.fileSizeBytes)}</span>
       </div>
 
+      {doc.summary && doc.status === 'ready' && (
+        <p className="text-[11px] text-muted leading-relaxed line-clamp-3">
+          {doc.summary}
+        </p>
+      )}
+
       {doc.status === 'failed' && doc.errorMessage && (
         <p className="text-[11px] text-accent-red bg-red-900/10 rounded px-2 py-1 truncate">
           {doc.errorMessage}
