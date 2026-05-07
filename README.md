@@ -29,12 +29,14 @@ A full-stack document intelligence platform:
 - **Upload** any PDF (research papers, technical docs, legal contracts, general documents)
 - **Ingestion pipeline** extracts text, detects document structure, chunks intelligently, embeds, and indexes into a vector + full-text search database
 - **Q&A** with confidence scoring — the system tells you how reliable each answer is, shows you the source chunks it used, and refuses to answer questions the document can't support
+- **Conversational memory** — multi-turn chat with 3-turn history, enabling follow-up questions like "elaborate on that" or "what page is that on?"
+- **Document-specific query suggestions** — 6 questions generated from the document's content shown on load, eliminating cold-start friction
 - **Flashcard generation** — automatically extracts key concepts from the document into study cards, cached after first generation
 - **Library** to manage multiple documents
 
 ---
 
-## The Two USPs
+## The USPs
 
 ### USP 1 — Structure-Aware Chunking
 
@@ -101,7 +103,35 @@ A second safety net catches cases where a borderline score passes the gate but t
 }
 ```
 
-### USP 3 — Flashcard Generation with Zero Repeat Cost
+### USP 3 — Conversational Memory (Multi-Turn Chat)
+
+Every query is sent with the last 3 turns of conversation history, enabling coherent follow-up questions without repeating context.
+
+**How it works:**
+- The client maintains the conversation thread and sends the full history with each request
+- The backend caps history at 6 messages (3 turns) before passing to the LLM, keeping token cost bounded
+- The LLM sees prior Q&A pairs between the system prompt and the current question, so "elaborate on that" or "what page was that?" resolves correctly
+- No server-side session storage required — stateless design, no schema changes
+
+**Token overhead:** ~200–400 additional tokens per follow-up. Bounded by the 3-turn cap.
+
+---
+
+### USP 4 — Document-Specific Query Suggestions
+
+When a user opens a document, SmartDoc generates 6 questions tailored to that document's content and shows them as clickable chips — eliminating the cold-start problem of not knowing what to ask.
+
+**How it works:**
+1. After the document status resolves to `ready`, the frontend calls `GET /api/documents/{id}/suggestions`
+2. The API samples 6 representative chunks from the document and sends them to Groq with a prompt to generate specific, answerable questions
+3. Suggestions are shown immediately on the empty chat state — clicking one submits it instantly
+4. If the Groq call fails for any reason, the UI silently falls back to 4 generic questions
+
+**Token cost:** ~300 tokens per document visit (one-shot Groq call, not cached).
+
+---
+
+### USP 5 — Flashcard Generation with Zero Repeat Cost
 
 After a document is ingested, SmartDoc can generate a study deck of 8–12 flashcards covering the key concepts in the document.
 
