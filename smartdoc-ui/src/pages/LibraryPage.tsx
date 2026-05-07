@@ -65,7 +65,7 @@ function DocCard({ doc, onDelete, deleting, onQuery }: {
       </div>
 
       {doc.summary && doc.status === 'ready' && (
-        <p className="text-[11px] text-muted leading-relaxed line-clamp-3">
+        <p className="text-[11px] text-muted leading-relaxed">
           {doc.summary}
         </p>
       )}

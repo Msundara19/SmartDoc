@@ -32,6 +32,7 @@ A full-stack document intelligence platform:
 - **Conversational memory** — multi-turn chat with 3-turn history, enabling follow-up questions like "elaborate on that" or "what page is that on?"
 - **Document-specific query suggestions** — 6 questions generated from the document's content shown on load, eliminating cold-start friction
 - **Flashcard generation** — automatically extracts key concepts from the document into study cards, cached after first generation
+- **Semantic document summaries** — each document gets a 3–5 sentence prose summary generated at ingestion time and displayed on the library card, so you can assess relevance without opening the document
 - **Library** to manage multiple documents
 
 ---
@@ -146,6 +147,24 @@ After a document is ingested, SmartDoc can generate a study deck of 8–12 flash
 
 ---
 
+### USP 6 — Semantic Document Summaries at Ingestion Time
+
+When a document finishes indexing, SmartDoc immediately generates a 3–5 sentence prose summary and stores it alongside the document — so the library card tells you what a document is about before you open it.
+
+**How it works:**
+
+1. After chunks are embedded and saved, the ingestion pipeline samples 6 evenly-distributed chunks from the newly indexed document
+2. A Groq call generates a concise prose summary: what the document covers, its key findings or purpose, and who it is for — no bullet points, no padding
+3. The summary is persisted to a `summary TEXT` column on the `documents` table in a single `UPDATE`
+4. Both `GET /api/documents` (library listing) and `GET /api/documents/{id}/status` return the summary field, so the frontend never needs a separate round-trip
+5. Summary generation is wrapped in a non-fatal try/catch — if Groq is unavailable during ingestion, the document still becomes `ready` and the summary field is simply absent
+
+**Result**: users see a plain-language description on every library card without any extra clicks.
+
+**Token cost:** ~400–600 tokens per document, charged once at ingestion. Zero cost on subsequent views.
+
+---
+
 ## Architecture
 
 ```
@@ -174,12 +193,14 @@ After a document is ingested, SmartDoc can generate a study deck of 8–12 flash
 │  │  4. TOC/junk filtering   │  │  4. LLM refusal detection    │  │
 │  │  5. Overview chunk       │  │  5. Groq LLM (if gate passes)│  │
 │  │  6. Jina embed + store   │  └──────────────────────────────┘  │
+│  │  7. Groq summary + cache │                                    │
 │  └──────────────────────────┘                                    │
 └──────────────────────────────┬───────────────────────────────────┘
                                │ Npgsql + pgvector
 ┌──────────────────────────────▼───────────────────────────────────┐
 │         PostgreSQL 16 + pgvector  (Render managed DB)            │
-│  documents  — id, filename, status, doc_type, flashcards_json    │
+│  documents  — id, filename, status, doc_type, summary,           │
+│               flashcards_json                                     │
 │  chunks     — embedding vector(1024), search_vector tsvector,    │
 │               section_name, page_number, chunk_index             │
 └───────────────┬──────────────────────────────────────────────────┘
